@@ -1,0 +1,73 @@
+﻿@page "/login"
+@using Blazored.LocalStorage
+@using ContactList.Shared
+@using ContactList.Shared.Auth
+@using ContactList.Web.AuthProviders
+@using Microsoft.AspNetCore.Components.Authorization
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@inject ILocalStorageService LocalStorage
+<PageTitle>Login</PageTitle>
+<h1>Login</h1>
+
+<EditForm Model="_model" OnValidSubmit="LoginAsync">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div>
+        <label for="email">Email:</label>
+        <InputText id="email" @bind-Value="_model.Email" class="form-control" />
+        <ValidationMessage For="@(() => _model.Email)" />
+    </div>
+    <div>
+        <label for="password">Password:</label>
+        <InputText id="password" type="password" @bind-Value="_model.Password" class="form-control" />
+        <ValidationMessage For="@(() => _model.Password)" />
+    </div>
+    <button type="submit" class="btn btn-primary">Login</button>
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger mt-2">@_errorMessage</div>
+    }
+</EditForm>
+
+@code {
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
+
+    private LoginDto _model = new();
+    private string? _errorMessage;
+
+    private async Task LoginAsync()
+    {
+        var response = await Http.PostAsJsonAsync("api/account/login", _model);
+        if (response.IsSuccessStatusCode)
+        {
+            var json = await response.Content.ReadFromJsonAsync<TokenDto>();
+            var token = json?.Token;
+
+            if (string.IsNullOrEmpty(token))
+            {
+                throw new InvalidOperationException("Token is null or empty.");
+            }
+
+            await LocalStorage.SetItemAsync("authToken", token);
+            if (AuthStateProvider is AppAuthStateProvider appAuth)
+            {
+                appAuth.NotifyUserChanged();
+            }
+            Navigation.NavigateTo(IsValidReturnUrl(ReturnUrl) ? ReturnUrl! : "/");
+        }
+        else
+        {
+            _errorMessage = await response.Content.ReadAsStringAsync();
+        }
+    }
+
+    private bool IsValidReturnUrl(string? url)
+    {
+        return !string.IsNullOrWhiteSpace(url) && Uri.TryCreate(url, UriKind.Relative, out _) && !url.StartsWith("//");
+    }
+}

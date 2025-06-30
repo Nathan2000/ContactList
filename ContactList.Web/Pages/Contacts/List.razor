@@ -1,0 +1,55 @@
+﻿@page "/contacts"
+@inject ContactService Service
+@inject NavigationManager NavigationContext
+@using ContactList.Shared.Contacts
+@using ContactList.Web.Services
+<PageTitle>Contacts</PageTitle>
+
+<h1>Contacts</h1>
+
+@if (contacts is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Category</th>
+                <th>Subcategory</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var contact in contacts)
+            {
+                <tr>
+                    <td><a href="contacts/@contact.Id">@contact.FirstName @contact.LastName</a></td>
+                    <td>@contact.Email</td>
+                    <td>@contact.PhoneNumber</td>
+                    <td>@contact.Category</td>
+                    <td>@contact.SubcategoryName</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <button class="btn btn-success" @onclick="CreateNew">New contact</button>
+}
+
+@code {
+    private List<ContactDto>? contacts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        contacts = await Service.GetContactsAsync();
+    }
+
+    private void CreateNew()
+    {
+        NavigationContext.NavigateTo("contacts/new");
+    }
+}

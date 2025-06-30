@@ -1,0 +1,52 @@
+﻿@page "/register"
+@using ContactList.Shared
+@using ContactList.Shared.Auth
+@inject HttpClient Http
+@inject NavigationManager Navigation
+<PageTitle>Register</PageTitle>
+<h1>Register</h1>
+
+<EditForm Model="_model" OnValidSubmit="RegisterAsync">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div>
+        <label for="email">Email:</label>
+        <InputText id="email" @bind-Value="_model.Email" class="form-control" />
+        <ValidationMessage For="@(() => _model.Email)" />
+    </div>
+    <div>
+        <label for="password">Password:</label>
+        <InputText id="password" type="password" @bind-Value="_model.Password" class="form-control" />
+        <ValidationMessage For="@(() => _model.Password)" />
+    </div>
+    <div>
+        <label for="confirmPassword">Confirm Password:</label>
+        <InputText id="confirmPassword" type="password" @bind-Value="_model.ConfirmPassword" class="form-control" />
+        <ValidationMessage For="@(() => _model.ConfirmPassword)" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Register</button>
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger mt-2">@_errorMessage</div>
+    }
+</EditForm>
+
+@code {
+    private RegisterDto _model = new();
+    private string? _errorMessage;
+
+    private async Task RegisterAsync()
+    {
+        var response = await Http.PostAsJsonAsync("api/account/register", _model);
+        if (response.IsSuccessStatusCode)
+        {
+            Navigation.NavigateTo("/");
+        }
+        else
+        {
+            _errorMessage = await response.Content.ReadAsStringAsync();
+        }
+    }
+}

@@ -1,0 +1,202 @@
+﻿@attribute [Authorize]
+@page "/contacts/{Id:int?}"
+@page "/contacts/new"
+@inject ContactService Service
+@inject NavigationManager Navigation
+@using ContactList.Shared.Contacts
+@using ContactList.Web.Services
+@using Microsoft.AspNetCore.Authorization
+<PageTitle>Contact Details</PageTitle>
+
+<h1>Details</h1>
+
+@if (contact == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (NotFound)
+{
+    <p class="text-danger">Contact not found.</p>
+}
+else
+{
+    <EditForm Model="contact" OnValidSubmit="SubmitAsync">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        @if (!IsNew)
+        {
+            <div class="mb-3">
+                <label for="id">ID:</label>
+                <InputNumber id="id" @bind-Value="contact.Id" class="form-control" Disabled="true" />
+            </div>
+        }
+        <div class="mb-3">
+            <label for="first-name">First Name:</label>
+            <InputText id="first-name" @bind-Value="contact.FirstName" class="form-control" />
+            <ValidationMessage For="@(() => contact.FirstName)" />
+        </div>
+
+        <div class="mb-3">
+            <label for="last-name">Last Name:</label>
+            <InputText id="last-name" @bind-Value="contact.LastName" class="form-control" />
+            <ValidationMessage For="@(() => contact.LastName)" />
+        </div>
+
+        <div class="mb-3">
+            <label for="email">E-mail:</label>
+            <InputText id="email" @bind-Value="contact.Email" class="form-control" />
+            <ValidationMessage For="@(() => contact.Email)" />
+        </div>
+
+        <div class="mb-3">
+            <label for="password">Password:</label>
+            <InputText id="password" @bind-Value="contact.Password" class="form-control" />
+            <ValidationMessage For="@(() => contact.Password)" />
+        </div>
+
+        <div class="mb-3">
+            <label for="phone">Phone Number:</label>
+            <InputText id="phone" @bind-Value="contact.PhoneNumber" class="form-control" />
+            <ValidationMessage For="@(() => contact.PhoneNumber)" />
+        </div>
+
+        <div class="mb-3">
+            <label for="birth">Birth Date:</label>
+            <InputDate id="birth" @bind-Value="contact.DateOfBirth" class="form-control" />
+            <ValidationMessage For="@(() => contact.DateOfBirth)" />
+        </div>
+
+        <div class="mb-3">
+            <label for="category">Category:</label>
+            <InputSelect id="category" @bind-Value="contact.Category" @bind-Value:after="OnCategoryChanged" class="form-control">
+                @foreach (var category in categories)
+                {
+                    <option value="@category">@category</option>
+                }
+            </InputSelect>
+            <ValidationMessage For="@(() => contact.Category)" />
+        </div>
+
+        @if (contact.Category == Category.Professional || contact.Category == Category.Other)
+        {
+            <div class="mb-3">
+                <label for="subcategory">Subcategory:</label>
+                @if (contact.Category == Category.Professional)
+                {
+                    <InputSelect id="subcategory" @bind-Value="contact.SubcategoryId" class="form-control">
+                        @foreach (var subcategory in subcategories)
+                        {
+                            <option value="@subcategory.Id">@subcategory.Name</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => contact.SubcategoryId)" />
+                }
+                else
+                {
+                    <InputText id="subcategory" @bind-Value="contact.SubcategoryName" class="form-control" />
+                    <ValidationMessage For="@(() => contact.SubcategoryName)" />
+                }
+            </div>
+        }
+
+        @if (IsNew)
+        {
+            <button type="submit" class="btn btn-primary">Create</button>
+        }
+        else
+        {
+            <button type="submit" class="btn btn-primary">Save</button>
+            <button type="button" class="btn btn-danger ms-2" @onclick="DeleteAsync">Delete</button>
+        }
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int? Id { get; set; }
+
+    private ContactDto? contact;
+    private List<Category> categories = [Category.Private, Category.Professional, Category.Other];
+    private List<SubcategoryDto> subcategories = [];
+
+    private bool IsNew => Id == null;
+    private bool NotFound = false;
+
+    protected async override Task OnInitializedAsync()
+    {
+        subcategories = await Service.GetSubcategoriesAsync(Category.Professional);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Id is int id)
+        {
+            // We're showing an existing contact
+            contact = await Service.GetContactByIdAsync(id);
+            if (contact == null)
+                NotFound = true;
+        }
+        else
+        {
+            // We're creating a new one
+            contact = new ContactDto();
+        }
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (IsNew)
+        {
+            await CreateContactAsync();
+        }
+        else
+        {
+            await UpdateContactAsync();
+        }
+    }
+
+    private async Task CreateContactAsync()
+    {
+        if (contact != null)
+        {
+            int id = await Service.CreateContactAsync(contact);
+            Navigation.NavigateTo($"contacts/{id}");
+        }
+    }
+
+    private async Task UpdateContactAsync()
+    {
+        if (contact != null)
+        {
+            await Service.UpdateContactAsync(contact);
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (Id is int id)
+        {
+            await Service.DeleteContactAsync(id);
+            Navigation.NavigateTo($"contacts");
+        }
+    }
+
+    private void OnCategoryChanged()
+    {
+        if (contact != null)
+        {
+            if (contact.Category == Category.Professional)
+            {
+                contact.SubcategoryId = subcategories.FirstOrDefault()?.Id;
+            }
+            else
+            {
+                contact.SubcategoryId = null;
+            }
+
+            // Prevent the subcategory name polluting the Other category textbox.
+            contact.SubcategoryName = null;
+        }
+    }
+}
